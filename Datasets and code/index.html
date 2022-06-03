@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Lolipop Chart</title>
+</head>
+
+<!-- Load local d3.js -->
+<script src="./d3.v4.js"></script>
+<script src="./d3-legend.js"></script>
+
+<style>
+  h1 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 30px;
+    font-weight: 600;
+    background-image: linear-gradient(to bottom left, #553c9a, #ee4b2b);
+    color: transparent;
+    background-clip: text;
+    -webkit-background-clip: text;
+  }
+
+  div #textrange {
+    margin-top: 0;
+    margin-bottom: 10px;
+    line-height: 4.1;
+    margin-left: 10px;
+    font-size: 25px;
+    font-weight: 600;
+    background-image: linear-gradient(to left, #553c9a, #b393d3);
+    color: transparent;
+    background-clip: text;
+    -webkit-background-clip: text;
+  }
+</style>
+
+<div style="display: flex;">
+  <h1>Rate of Depression using different features: Age Group, Education and Marital Status</h1>
+</div>
+
+<!-- select dropdown container -->
+<select id="selectOption"></select>
+
+<!-- render chart in this container -->
+<div id="chart"></div>
+
+
+<script>
+
+  var margin = { top: 10, right: 30, bottom: 30, left: 50 },
+    height = 500 - margin.top - margin.bottom;
+
+  // select the chart container and append d3 svg object to it
+  var chart = d3.select("#chart").append("svg")
+    .attr("height", height + margin.top + margin.bottom)
+
+  currentWidth = parseInt(d3.select('#chart').style('width'), 10)
+  chart.attr("width", currentWidth + margin.left + margin.right)
+    .append("g")
+    .attr("transform",
+      "translate(" + margin.left + "," + margin.top + ")");
+
+  //create dropdown options
+  var dropdown = [
+    { text: "Age Group", value: "age_group" },
+    { text: "Educational Status", value: "education" },
+    { text: "Marital Status", value: "marital_status" }
+  ];
+
+  //populate the select option container with the above option
+  d3.select("#selectOption")
+    .selectAll('myOptions')
+    .data(dropdown)
+    .enter()
+    .append('option')
+    .text(function (d) { return d.text; }) // text showed in the dropdown
+    .attr("value", function (d) { return d.value; }) // corresponding value returned by the selected option
+
+
+  var x = d3.scaleBand()
+    .range([0, currentWidth - margin.left - margin.right]);
+
+  var xAxisTranslate = height + 10;
+  // var xAxis = d3.axisBottom().scale(x);
+  var xAxis = chart.append("g")
+    .attr("transform", "translate(50," + xAxisTranslate + ")").call(d3.axisBottom(x).tickSize(0))
+
+
+
+  // Initialize the Y axis
+  var y = d3.scaleLinear()
+    .range([height, 0]);
+  var yAxis = chart.append("g")
+    .attr("transform", "translate(50, 10)")
+    .attr("class", "myYaxis");
+
+  var j = chart.append("g");
+
+  var u = chart.append("g")
+
+  var xSubgroup = d3.scaleBand()
+
+  var legend = d3.legendColor()
+    .shapeWidth(50)
+    .cells(2)
+    .orient("vertical").
+    shape('circle')
+    .scale(d3.scaleOrdinal()
+      .domain(["Depressed", "Not Depressed"])
+      .range(['#e41a1c', '#377eb8']))
+    .labelAlign("start").shapePadding(20);
+
+  chart.append("g")
+    .attr("class", "legend")
+    .attr("transform", "translate(1100, 10)");
+
+  chart.select(".legend")
+    .call(legend);
+
+
+  function renderChart(data_set) {
+
+    d3.csv(`${data_set}.csv`, function (d) {
+      let newVal = Object.values(d);
+      return {
+        property: newVal[0],
+        value1: newVal[1],
+        value2: newVal[2]
+      }
+    }, function (data) {
+      // X axis
+      var groups = d3.map(data, function (d) { return (d.property) }).keys()
+      x.domain(groups).padding([0.5])
+      xAxis.transition().duration(1000).call(d3.axisBottom(x))
+
+      // Add Y axis
+      y.domain([0, d3.max(data.map(d => { return +d.value1 }).concat(data.map(d => { return +d.value2 })))]);
+      yAxis.transition().duration(1000).call(d3.axisLeft(y));
+      let subgroups = { value1: "Depressed", value2: "Not Depressed" };
+
+      xSubgroup.domain(Object.keys(subgroups))
+        .range([0, x.bandwidth()])
+        .padding([0.05])
+
+      // color palette = one color per subgroup
+      var color = d3.scaleOrdinal()
+        .domain(Object.keys(subgroups))
+        .range(['#e41a1c', '#377eb8'])
+
+      // variable u: map data to existing circle
+      var jgraph = j.selectAll("g")
+      var jdata = jgraph.data(data, function (d) {
+        return d.property
+      })
+
+      jgraph.remove();
+
+      var jenter = jdata.enter()
+
+      // update lines
+      jenter.append("g")
+        .attr("transform", function (d) { return "translate(" + (x(d.property) + 50) + ",10)"; })
+        .selectAll("line")
+        .merge(j)
+        .data(function (d) { return Object.keys(subgroups).map(function (key) { return { key: key, value: d[key] }; }); }, function (d) {
+          return d.key;
+        })
+        .enter().append("line")
+        //.attr("class", "myLine")
+        .transition()
+        .duration(1000)
+        .attr("x1", function (d) { return xSubgroup(d.key); })
+        .attr("x2", function (d) { return xSubgroup(d.key); })
+        .attr("y1", y(0))
+        .attr("y2", function (d) { return y(d.value); })
+        .attr("stroke", function (d) { return color(d.key); })
+
+
+
+
+
+
+      var ugraph = u.selectAll("g")
+
+      ugraph.remove();
+      var udata = ugraph.data(data, function (d) {
+        return d.property
+      })
+
+      var uenter = udata.enter()
+      uenter.append("g")
+        .attr("transform", function (d) { return "translate(" + (x(d.property) + 50) + ",10)"; })
+        .selectAll("circle")
+        .merge(u)
+        .data(function (d) { return Object.keys(subgroups).map(function (key) { return { key: key, value: d[key] }; }); })
+        .enter()
+        .append("circle")
+        .on("mouseover", function (dd) {
+
+          d3.select(this.parentNode).append("text")
+            .attr("x", function (d) { return xSubgroup(dd.key); })
+            .attr("y", function (d) { return y(dd.value); })
+            .attr("dy", "-1em")
+            .attr("text-anchor", "middle")
+            .text(function (d) {
+              return d3.format(".2s")(dd.value);
+            });
+        })
+        .on("mouseout", hideLabel)
+        .transition()
+        .duration(1000)
+        .attr("cx", function (d) { return xSubgroup(d.key); })
+        .attr("cy", function (d) { return y(d.value); })
+        .attr("r", 8)
+        .attr("fill", function (d) { return color(d.key); })
+
+
+    })
+
+  }
+
+  // function showLabel() {
+  //     var selection = d3.select(this);
+  //     var pos = classToPos[selection.attr("class")];
+
+  //     d3.select(this.parentNode).append("text")
+  //       .attr("x", function(d) { return x(d[pos]); })
+  //       .attr("y", function(d) { return y(d.name) + y.bandwidth() / 2; })
+  //       .attr("dy", "-1em")
+  //       .attr("text-anchor", "middle")
+  //       .text(function(d) {
+  //       	return d3.format(".2s")(d[pos]);
+  //     	});
+  //   }
+
+  function hideLabel(d) {
+    d3.select(this.parentNode).select("text").remove();
+  }
+
+  renderChart("age_group")
+
+  d3.select("#selectOption").on("change", function (d) {
+    // recover the option that has been chosen
+    var selectedOption = d3.select(this).property("value")
+    // run the updateChart function with this selected option
+    renderChart(selectedOption)
+  })
+
+</script>
